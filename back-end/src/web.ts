@@ -72,7 +72,6 @@ const sessionMiddleware = session({
 
 app.use(sessionMiddleware);
 app.use("/data", express.static(path.join(__dirname, "../../data")));
-app.use(express.static(path.join(__dirname, '../wavesurfer')));
 
 // ② React 번들의 정적 파일
 app.use(
