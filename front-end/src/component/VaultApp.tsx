@@ -1,7 +1,7 @@
 import { Main } from "@jsLib/class/Main";
 import { _File } from "@jsLib/class/_File";
-import React, { useMemo, useRef, useState } from "react";
-import { ToastContainer, toast } from "react-toastify";
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "react-toastify";
 type AccessLevel = "owner" | "team" | "link";
 
 type StoredFile = {
@@ -14,6 +14,15 @@ type StoredFile = {
   sharedWith?: string[];
   note?: string;
   uploadedAt: string;
+};
+
+type state = {
+  viewerId: string;
+  ownerId: string;
+  access: AccessLevel;
+  note: string;
+  selectedFile: File | null;
+  sharedWith: string;
 };
 
 const seedFiles: StoredFile[] = [
@@ -88,33 +97,43 @@ function AccessBadge({ level }: { level: AccessLevel }) {
 
 class VaultAppClass extends Main {
   public readonly file: _File;
+  public state: state;
 
-  constructor() {
+  constructor(initialState: state) {
     super();
+    this.state = { ...initialState };
     this.file = new _File(this.im_forceRender.bind(this));
   }
 }
 
+const initiallv_Obj: state = {
+  viewerId: "junseok",
+  ownerId: "junseok",
+  access: "owner",
+  note: "클라이언트는 경로를 알 수 없고, 서버가 읽어 스트리밍",
+  selectedFile: null,
+  sharedWith: "design-squad",
+};
+
 export function VaultApp() {
+  const [lv_Obj] = useState(() => new VaultAppClass(initiallv_Obj));
+  lv_Obj.im_Prepare_Hooks(() => {});
   const [files, setFiles] = useState<StoredFile[]>(seedFiles);
-  const [viewerId, setViewerId] = useState("junseok");
-  const [ownerId, setOwnerId] = useState("junseok");
-  const [access, setAccess] = useState<AccessLevel>("owner");
-  const [note, setNote] = useState(
-    "클라이언트는 경로를 알 수 없고, 서버가 읽어 스트리밍"
-  );
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [sharedWith, setSharedWith] = useState("design-squad");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const selectedFileLabel = selectedFile
-    ? `${selectedFile.name} · ${formatBytes(selectedFile.size)}`
+  const selectedFileLabel = lv_Obj.state.selectedFile
+    ? `${lv_Obj.state.selectedFile.name} · ${formatBytes(
+        lv_Obj.state.selectedFile.size
+      )}`
     : "파일을 끌어놓거나 선택하세요";
 
   const canAccess = (file: StoredFile) => {
-    if (file.access === "owner") return file.owner === viewerId;
+    if (file.access === "owner") return file.owner === lv_Obj.state.viewerId;
     if (file.access === "team") {
-      return file.owner === viewerId || file.sharedWith?.includes(viewerId);
+      return (
+        file.owner === lv_Obj.state.viewerId ||
+        file.sharedWith?.includes(lv_Obj.state.viewerId)
+      );
     }
     return true; // link
   };
@@ -122,30 +141,32 @@ export function VaultApp() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    setSelectedFile(file);
+    lv_Obj.state.selectedFile = file;
+    lv_Obj.im_forceRender();    
   };
 
   const handleUpload = () => {
-    if (!selectedFile) {
+    if (!lv_Obj.state.selectedFile) {
       toast.warn("업로드할 파일을 먼저 선택하세요.");
       return;
     }
     const newFile: StoredFile = {
       id: `f-${randomId()}`,
-      name: selectedFile.name,
-      size: selectedFile.size,
-      type: selectedFile.type || "application/octet-stream",
-      owner: ownerId || "unknown-user",
-      access,
-      sharedWith: sharedWith
+      name: lv_Obj.state.selectedFile.name,
+      size: lv_Obj.state.selectedFile.size,
+      type: lv_Obj.state.selectedFile.type || "application/octet-stream",
+      owner: lv_Obj.state.ownerId || "unknown-user",
+      access: lv_Obj.state.access,
+      sharedWith: lv_Obj.state.sharedWith
         .split(",")
-        .map((item) => item.trim())
+        .map((item: string) => item.trim())
         .filter(Boolean),
-      note,
+      note: lv_Obj.state.note,
       uploadedAt: new Date().toISOString(),
     };
     setFiles((prev) => [newFile, ...prev]);
-    setSelectedFile(null);
+    lv_Obj.state.selectedFile = null;
+    lv_Obj.im_forceRender();
     if (fileInputRef.current) fileInputRef.current.value = "";
     toast.success(
       "메타데이터와 함께 저장했습니다. 이제 서버 엔드포인트와 연결해 보세요."
@@ -222,8 +243,11 @@ export function VaultApp() {
             <div className="inline-control">
               <label>현재 사용자</label>
               <select
-                value={viewerId}
-                onChange={(e) => setViewerId(e.target.value)}
+                value={lv_Obj.state.viewerId}
+                onChange={(e) => {
+                  lv_Obj.state.viewerId = e.target.value;
+                  lv_Obj.im_forceRender();
+                }}
               >
                 <option value="junseok">junseok (소유자)</option>
                 <option value="reviewer-lee">reviewer-lee</option>
@@ -259,16 +283,22 @@ export function VaultApp() {
             <div>
               <label>소유자 ID</label>
               <input
-                value={ownerId}
-                onChange={(e) => setOwnerId(e.target.value)}
+                value={lv_Obj.state.ownerId}
+                onChange={(e) => {
+                  lv_Obj.state.ownerId = e.target.value;
+                  lv_Obj.im_forceRender();
+                }}
                 placeholder="예: junseok"
               />
             </div>
             <div>
               <label>공유 대상 (쉼표로 구분)</label>
               <input
-                value={sharedWith}
-                onChange={(e) => setSharedWith(e.target.value)}
+                value={lv_Obj.state.sharedWith}
+                onChange={(e) => {
+                  lv_Obj.state.sharedWith = e.target.value;
+                  lv_Obj.im_forceRender();
+                }}
                 placeholder="예: design-squad, reviewer-lee"
               />
             </div>
@@ -278,8 +308,13 @@ export function VaultApp() {
                 {(["owner", "team", "link"] as AccessLevel[]).map((item) => (
                   <button
                     key={item}
-                    className={access === item ? "chip active" : "chip"}
-                    onClick={() => setAccess(item)}
+                    className={
+                      lv_Obj.state.access === item ? "chip active" : "chip"
+                    }
+                    onClick={() => {
+                      lv_Obj.state.access = item;
+                      lv_Obj.im_forceRender();
+                    }}
                     type="button"
                   >
                     {item === "owner"
@@ -295,8 +330,11 @@ export function VaultApp() {
               <label>메모 / 보안 노트</label>
               <textarea
                 rows={3}
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
+                value={lv_Obj.state.note}
+                onChange={(e) => {
+                  lv_Obj.state.note = e.target.value;
+                  lv_Obj.im_forceRender();
+                }}
               />
             </div>
           </div>
