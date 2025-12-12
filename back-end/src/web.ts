@@ -7,6 +7,7 @@ import session from "express-session";
 var MySQLStore = require("express-mysql-session")(session);
 import cookieParser from "cookie-parser";
 import dotenv from 'dotenv';
+import filesRouter from "./router/files";
 
 // .env 파일에서 환경 변수 로드
 dotenv.config();
@@ -72,6 +73,9 @@ const sessionMiddleware = session({
 
 app.use(sessionMiddleware);
 app.use("/data", express.static(path.join(__dirname, "../../data")));
+
+// 보호된 파일 업로드/다운로드 API (UUID 기반 저장)
+app.use("/api/files", filesRouter);
 
 // ② React 번들의 정적 파일
 app.use(

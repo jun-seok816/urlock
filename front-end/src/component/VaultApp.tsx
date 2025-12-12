@@ -7,7 +7,6 @@ import {
   UploadState,
 } from "@jsLib/class/_File";
 import React, { useMemo, useRef, useState } from "react";
-import { toast } from "react-toastify";
 
 type UiState = {
   viewerId: string;
@@ -69,10 +68,6 @@ function formatDate(dateString: string) {
   });
 }
 
-function randomId() {
-  return Math.random().toString(36).slice(2, 9);
-}
-
 function AccessBadge({ level }: { level: AccessLevel }) {
   const label =
     level === "owner"
@@ -116,74 +111,13 @@ export function VaultApp() {
   );
   lv_Obj.im_Prepare_Hooks(() => {});
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  lv_Obj.file.attachFileInputRef(fileInputRef);
 
   const selectedFileLabel = lv_Obj.file.upload.selectedFile
     ? `${lv_Obj.file.upload.selectedFile.name} · ${formatBytes(
         lv_Obj.file.upload.selectedFile.size
       )}`
     : "파일을 끌어놓거나 선택하세요";
-
-  const canAccess = (file: StoredFile) => {
-    if (file.access === "owner") return file.owner === lv_Obj.state.viewerId;
-    if (file.access === "team") {
-      return (
-        file.owner === lv_Obj.state.viewerId ||
-        file.sharedWith?.includes(lv_Obj.state.viewerId)
-      );
-    }
-    return true; // link
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    lv_Obj.file.setSelectedFile(file);
-  };
-
-  const handleUpload = () => {
-    if (!lv_Obj.file.upload.selectedFile) {
-      toast.warn("업로드할 파일을 먼저 선택하세요.");
-      return;
-    }
-    const newFile: StoredFile = {
-      id: `f-${randomId()}`,
-      name: lv_Obj.file.upload.selectedFile.name,
-      size: lv_Obj.file.upload.selectedFile.size,
-      type:
-        lv_Obj.file.upload.selectedFile.type || "application/octet-stream",
-      owner: lv_Obj.file.upload.ownerId || "unknown-user",
-      access: lv_Obj.file.upload.access,
-      sharedWith: lv_Obj.file.upload.sharedWith
-        .split(",")
-        .map((item: string) => item.trim())
-        .filter(Boolean),
-      note: lv_Obj.file.upload.note,
-      uploadedAt: new Date().toISOString(),
-    };
-    lv_Obj.file.addFile(newFile);
-    lv_Obj.file.setSelectedFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    toast.success(
-      "메타데이터와 함께 저장했습니다. 이제 서버 엔드포인트와 연결해 보세요."
-    );
-  };
-
-  const handleAccessCheck = (file: StoredFile) => {
-    const ok = canAccess(file);
-    if (ok) {
-      toast.success(
-        "권한 확인 완료. 서버에서 파일을 읽어 스트리밍할 수 있습니다."
-      );
-      return;
-    }
-    toast.error("권한 부족: 소유자 또는 공유 대상만 접근할 수 있습니다.");
-  };
-
-  const handleSignedLink = (file: StoredFile) => {
-    toast.info(
-      `서명 URL 발급 요청: ${file.name}. 실제 구현 시 만료 시간과 토큰을 포함하세요.`
-    );
-  };
 
   const fileCountByAccess = useMemo(() => {
     return lv_Obj.file.files.reduce(
@@ -270,7 +204,7 @@ export function VaultApp() {
               id="file-input"
               ref={fileInputRef}
               type="file"
-              onChange={handleFileChange}
+              onChange={lv_Obj.file.handleFileChange}
             />
           </div>
 
@@ -330,7 +264,11 @@ export function VaultApp() {
             </div>
           </div>
           <div className="actions">
-            <button className="primary" onClick={handleUpload} type="button">
+            <button
+              className="primary"
+              onClick={lv_Obj.file.handleUpload}
+              type="button"
+            >
               메타데이터와 함께 업로드
             </button>
             <p className="muted">
@@ -381,14 +319,16 @@ export function VaultApp() {
                 <div className="file-actions">
                   <button
                     className="ghost"
-                    onClick={() => handleAccessCheck(file)}
+                    onClick={() =>
+                      lv_Obj.file.handleAccessCheck(file, lv_Obj.state.viewerId)
+                    }
                     type="button"
                   >
                     <i className="bi bi-shield-check"></i> 권한 검사
                   </button>
                   <button
                     className="ghost"
-                    onClick={() => handleSignedLink(file)}
+                    onClick={() => lv_Obj.file.handleSignedLink(file)}
                     type="button"
                   >
                     <i className="bi bi-link-45deg"></i> 서명 URL 시뮬레이션
