@@ -267,9 +267,10 @@ export function VaultApp() {
             <button
               className="primary"
               onClick={lv_Obj.file.handleUpload}
+              disabled={lv_Obj.file.uploading}
               type="button"
             >
-              메타데이터와 함께 업로드
+              {lv_Obj.file.uploading ? "업로드 중..." : "메타데이터와 함께 업로드"}
             </button>
             <p className="muted">
               실제 구현: 서버는 파일을 임시 저장 → 검증 → UUID로 이동 → DB에
